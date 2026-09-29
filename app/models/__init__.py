@@ -3,6 +3,10 @@
 Import every table model here so ``SQLModel.metadata.create_all`` sees them.
 """
 
+from app.models.game import Game
+from app.models.listing import Listing
+from app.models.payment import Payment, RentalPayment
+from app.models.rental import Rental
 from app.models.user import User
 
-__all__ = ["User"]
+__all__ = ["Game", "Listing", "Payment", "Rental", "RentalPayment", "User"]

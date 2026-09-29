@@ -1,6 +1,6 @@
-from sqlmodel import Field, SQLModel
-from typing import Optional
+
 from pydantic import EmailStr
+from sqlmodel import Field, SQLModel
 
 
 class UserBase(SQLModel,):
@@ -10,4 +10,4 @@ class UserBase(SQLModel,):
     role:str = ""
 
 class User(UserBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)

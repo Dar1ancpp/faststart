@@ -1,9 +1,10 @@
-from sqlmodel import Session, select, func
-from app.models.user import UserBase, User
-from typing import Optional, Tuple
-from app.utilities.pagination import Pagination
-from app.schemas.user import UserUpdate
 import logging
+
+from sqlmodel import Session, func, select
+
+from app.models.user import User, UserBase
+from app.schemas.user import UserUpdate
+from app.utilities.pagination import Pagination
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class UserRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, user_data: UserBase) -> Optional[User]:
+    def create(self, user_data: UserBase) -> User | None:
         try:
             user_db = User.model_validate(user_data)
             self.db.add(user_db)
@@ -23,7 +24,7 @@ class UserRepository:
             self.db.rollback()
             raise
 
-    def search_users(self, query: str, page:int=1, limit:int=10) -> Tuple[list[User], Pagination]:
+    def search_users(self, query: str, page:int=1, limit:int=10) -> tuple[list[User], Pagination]:
         offset = (page - 1) * limit
         db_qry = select(User)
         if query:
@@ -38,10 +39,10 @@ class UserRepository:
 
         return users, pagination
 
-    def get_by_username(self, username: str) -> Optional[User]:
+    def get_by_username(self, username: str) -> User | None:
         return self.db.exec(select(User).where(User.username == username)).one_or_none()
 
-    def get_by_id(self, user_id: int) -> Optional[User]:
+    def get_by_id(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
 
     def get_all_users(self) -> list[User]:

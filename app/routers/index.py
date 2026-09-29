@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 
 from app.dependencies.auth import IsUserLoggedIn, get_current_user, is_admin
 from app.dependencies.session import SessionDep
+
 from . import router, templates
 
 

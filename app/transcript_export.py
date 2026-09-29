@@ -188,9 +188,7 @@ def export_project_transcripts(
     for old in dest.glob("*"):
         if old.name in {"README.md"}:
             continue
-        if old.is_file() and old.suffix.lower() in {".md", ".jsonl"}:
-            old.unlink(missing_ok=True)
-        elif old.is_file() and old.name == "transcripts.zip":
+        if old.is_file() and old.suffix.lower() in {".md", ".jsonl"} or old.is_file() and old.name == "transcripts.zip":
             old.unlink(missing_ok=True)
 
     roots = discover_transcript_roots(repo)

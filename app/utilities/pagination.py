@@ -1,5 +1,6 @@
 from math import ceil
 
+
 class Pagination:
     def __init__(self, total_count: int, current_page: int, limit: int):
         self.total_count = total_count

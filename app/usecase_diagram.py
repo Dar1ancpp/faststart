@@ -217,9 +217,7 @@ def _parse_actors(raw: object) -> tuple[Actor, ...]:
     for index, name in enumerate(unique):
         if name in sides:
             side = sides[name]
-        elif len(unique) == 1:
-            side = "left"
-        elif index == 0:
+        elif len(unique) == 1 or index == 0:
             side = "left"
         elif index == len(unique) - 1:
             side = "right"

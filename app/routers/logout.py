@@ -1,7 +1,8 @@
-from fastapi.responses import RedirectResponse
 from fastapi import Request, status
+from fastapi.responses import RedirectResponse
 
 from app.utilities.security import access_token_cookie_kwargs
+
 from . import router
 
 

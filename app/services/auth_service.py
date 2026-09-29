@@ -1,13 +1,18 @@
+
 from app.repositories.user import UserRepository
-from app.utilities.security import encrypt_password, verify_password, create_access_token
 from app.schemas.user import RegularUserCreate
-from typing import Optional
+from app.utilities.security import (
+    create_access_token,
+    encrypt_password,
+    verify_password,
+)
+
 
 class AuthService:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
 
-    def authenticate_user(self, username: str, password: str) -> Optional[str]:
+    def authenticate_user(self, username: str, password: str) -> str | None:
         user = self.user_repo.get_by_username(username)
         if not user or not verify_password(plaintext_password=password, encrypted_password=user.password):
             return None

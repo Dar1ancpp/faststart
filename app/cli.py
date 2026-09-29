@@ -33,7 +33,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         # Drop can fail on a brand-new empty DB; create path still retries.
         try:
             drop_all()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             from app.database import is_db_not_ready_error
 
             if not is_db_not_ready_error(exc):
@@ -47,13 +47,19 @@ def cmd_init(args: argparse.Namespace) -> None:
 
 
 def cmd_seed(args: argparse.Namespace) -> None:
-    """Insert demo users.
+    """Insert demo users, games, and listings.
 
     bob / bobpass       (regular_user)
     admin / adminpass   (admin)
+    staff / staffpass   (staff)
+    owner / ownerpass   (owner)
     """
     from app.database import ensure_db_and_tables, get_cli_session
+    from app.models.listing import Listing
+    from app.repositories.game import GameRepository
+    from app.repositories.listing import ListingRepository
     from app.repositories.user import UserRepository
+    from app.schemas.game import GameCreate
     from app.schemas.user import AdminCreate, RegularUserCreate
     from app.utilities.security import encrypt_password
 
@@ -63,19 +69,24 @@ def cmd_seed(args: argparse.Namespace) -> None:
     demo_users = [
         ("bob", "bob@example.com", "bobpass", "regular_user"),
         ("admin", "admin@example.com", "adminpass", "admin"),
+        ("staff", "staff@example.com", "staffpass", "staff"),
+        ("owner", "owner@example.com", "ownerpass", "owner"),
     ]
 
     created = 0
     skipped = 0
     with get_cli_session() as session:
-        repo = UserRepository(session)
+        user_repo = UserRepository(session)
+        game_repo = GameRepository(session)
+        listing_repo = ListingRepository(session)
+
         for username, email, password, role in demo_users:
-            if repo.get_by_username(username):
+            if user_repo.get_by_username(username):
                 print(f"  skip  {username} (already exists)")
                 skipped += 1
                 continue
-            payload_cls = AdminCreate if role == "admin" else RegularUserCreate
-            repo.create(
+            payload_cls = AdminCreate if role in ["admin", "staff"] else RegularUserCreate
+            user_repo.create(
                 payload_cls(
                     username=username,
                     email=email,
@@ -86,8 +97,23 @@ def cmd_seed(args: argparse.Namespace) -> None:
             print(f"  create {username} ({role})")
             created += 1
 
+        # Seed Games if none exist
+        if not game_repo.get_all():
+            g1 = game_repo.create(GameCreate(title="Zelda: Tears of the Kingdom", platform="NSW", genre="Action", rating="E10+"))
+            g2 = game_repo.create(GameCreate(title="Spider-Man 2", platform="PS5", genre="Action", rating="T"))
+            game_repo.create(GameCreate(title="Halo Infinite", platform="XBOX", genre="FPS", rating="M"))
+            game_repo.create(GameCreate(title="Cyberpunk 2077", platform="PC", genre="RPG", rating="M"))
+            print("  created sample games")
+
+            owner = user_repo.get_by_username("owner")
+            if owner:
+                listing_repo.create(Listing(game_id=g1.id, owner_id=owner.id, condition="New", price=59.99, availability="Available"), owner_id=owner.id)
+                listing_repo.create(Listing(game_id=g2.id, owner_id=owner.id, condition="Used", price=49.99, availability="Available"), owner_id=owner.id)
+                print("  created sample listings")
+
     print(f"Seed done — created {created}, skipped {skipped}.")
-    print("Login with bob/bobpass or admin/adminpass")
+    print("Login with bob/bobpass, admin/adminpass, staff/staffpass, or owner/ownerpass")
+
 
 
 def cmd_run(args: argparse.Namespace) -> None:

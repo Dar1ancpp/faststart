@@ -4,7 +4,7 @@ import time
 from contextlib import contextmanager
 
 from sqlalchemy.exc import DBAPIError, OperationalError, ProgrammingError
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import get_settings
 
@@ -85,7 +85,7 @@ def ensure_db_and_tables(
             if attempt > 1:
                 logger.info("Database schema ready after %s attempt(s)", attempt)
             return
-        except Exception as exc:  # noqa: BLE001 — first-boot resilience
+        except Exception as exc:
             last = exc
             if not is_db_not_ready_error(exc) or attempt >= retries:
                 raise

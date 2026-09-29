@@ -3,12 +3,14 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
 
 from app.config import get_settings
 from app.routers import api_router, router, static_files, templates
+from app.routers.game_api import game_api_router
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,6 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     from app.database import ensure_db_and_tables
 
-    # First boot on Render often races the free Postgres instance.
     ensure_db_and_tables()
     yield
 
@@ -31,6 +32,7 @@ app = FastAPI(
 
 app.include_router(router)
 app.include_router(api_router)
+app.include_router(game_api_router)
 app.mount("/static", static_files, name="static")
 
 
@@ -41,14 +43,13 @@ async def recover_uninitialized_db(request: Request, call_next):
 
     try:
         return await call_next(request)
-    except Exception as exc:  # noqa: BLE001 — catch then re-raise if not DB init
+    except Exception as exc:
         if not recover_if_uninitialized(exc):
             raise
         logger.info("Retrying %s after database init", request.url.path)
         try:
             return await call_next(request)
         except Exception:
-            # Schema exists now but the prior response may still need a refresh.
             if request.method.upper() == "GET":
                 return RedirectResponse(url=str(request.url), status_code=303)
             raise
@@ -61,9 +62,15 @@ async def health():
 
 @app.exception_handler(status.HTTP_401_UNAUTHORIZED)
 async def unauthorized_redirect_handler(request: Request, exc: Exception):
+    if request.url.path.startswith("/api") or "application/json" in request.headers.get("accept", "") or request.headers.get("authorization"):
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": getattr(exc, "detail", "Could not validate credentials")},
+        )
     return templates.TemplateResponse(
         request=request,
         name="401.html",
+        status_code=status.HTTP_401_UNAUTHORIZED,
     )
 
 
