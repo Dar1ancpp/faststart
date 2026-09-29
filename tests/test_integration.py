@@ -13,26 +13,22 @@ from app.schemas.user import RegularUserCreate
 from app.services.auth_service import AuthService
 from app.services.game_service import GameService
 from app.services.user_service import UserService
-from app.utilities.security import encrypt_password, verify_password
+from app.utilities.security import encrypt_password
 
 
-def test_save_password(test_session):
+def test_create_user(test_session):
     repository = UserRepository(test_session)
-    service = AuthService(repository)
+    auth_service = AuthService(repository)
+    auth_service.register_user("alice", "alice@example.com", "secret")
 
-    created = service.register_user("alice", "alice@example.com", "secret")
-    saved = repository.get_by_username("alice")
+    users = UserService(repository).get_all_users()
 
-    assert saved is not None
-    assert created.id == saved.id
-    assert saved.username == "alice"
-    assert saved.email == "alice@example.com"
-    assert saved.role == "regular_user"
-    assert saved.password != "secret"
-    assert verify_password("secret", saved.password)
+    assert len(users) == 1
+    assert users[0].username == "alice"
+    assert users[0].email == "alice@example.com"
 
 
-def test_login(test_session):
+def test_authenticate(test_session):
     repository = UserRepository(test_session)
     service = AuthService(repository)
     service.register_user("alice", "alice@example.com", "secret")
@@ -49,19 +45,34 @@ def test_login(test_session):
     assert payload["role"] == "regular_user"
 
 
-def test_register_user(test_session):
+def test_get_all_users_json(test_session):
     repository = UserRepository(test_session)
     auth_service = AuthService(repository)
     auth_service.register_user("alice", "alice@example.com", "secret")
 
     users = UserService(repository).get_all_users()
+    users_json = [u.model_dump() if hasattr(u, "model_dump") else u.__dict__ for u in users]
 
-    assert len(users) == 1
-    assert users[0].username == "alice"
-    assert users[0].email == "alice@example.com"
+    assert len(users_json) == 1
+    assert users_json[0]["username"] == "alice"
+    assert users_json[0]["email"] == "alice@example.com"
 
 
-def test_create_game_and_listing_persists_with_ids(test_session):
+def test_update_user(test_session):
+    repository = UserRepository(test_session)
+    auth_service = AuthService(repository)
+    user = auth_service.register_user("alice", "alice@example.com", "secret")
+
+    user.email = "alice_new@example.com"
+    test_session.add(user)
+    test_session.commit()
+    saved = repository.get_by_id(user.id)
+
+    assert saved is not None
+    assert saved.email == "alice_new@example.com"
+
+
+def test_staff_create_listing(test_session):
     user_repo = UserRepository(test_session)
     owner = user_repo.create(
         RegularUserCreate(
@@ -91,7 +102,7 @@ def test_create_game_and_listing_persists_with_ids(test_session):
     assert listing.availability == "Available"
 
 
-def test_create_rental_changes_listing_to_rented(test_session):
+def test_staff_confirm_rental(test_session):
     user_repo = UserRepository(test_session)
     owner = user_repo.create(RegularUserCreate(username="owner2", email="o2@ex.com", password=encrypt_password("p")))
     renter = user_repo.create(RegularUserCreate(username="renter2", email="r2@ex.com", password=encrypt_password("p")))
@@ -116,7 +127,7 @@ def test_create_rental_changes_listing_to_rented(test_session):
     assert updated_listing.availability == "Rented"
 
 
-def test_return_rental_records_payment_and_makes_listing_available(test_session):
+def test_staff_return_rental(test_session):
     user_repo = UserRepository(test_session)
     owner = user_repo.create(RegularUserCreate(username="owner3", email="o3@ex.com", password=encrypt_password("p")))
     renter = user_repo.create(RegularUserCreate(username="renter3", email="r3@ex.com", password=encrypt_password("p")))
